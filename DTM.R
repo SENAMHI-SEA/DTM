@@ -1,6 +1,6 @@
 ####---------------------------------***--------------------------------#
 #
-#  Script para el procesamiento de variables meteoorlogicas Para DTM
+#         Script para el procesamiento de variables meteorlógicas
 #
 # -----------------------------------***--------------------------------#
 
