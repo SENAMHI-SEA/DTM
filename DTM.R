@@ -34,7 +34,7 @@ library(ggplotify)
 
 # RedE-> calculo de Maximos
 # BlueE-> Calculo de Minimos
-# Raiza -> calculo de promedios
+# Prom -> calculo de promedios
 
 RedE<- function(x){
   lake=sum(is.na(x))
@@ -80,7 +80,7 @@ dfi$datetime <- as.POSIXct(paste(dfi$Fecha,dfi$Hora), format="%Y-%m-%d %H")
 head(dfi)
 
 #calculo de valores diarios - usar las funciones 
-df1<-group_by(dfi, Anio, Mes,Dia, Fecha)
+df1<-group_by(dfi, Anio, Mes,Dia)
 
 df2<-summarise(df1,
               Prec = sum(Precip),
@@ -88,9 +88,11 @@ df2<-summarise(df1,
               Tmi = BlueE(Temp),
               Tmed = Prom(Temp),
               HR = Prom(HR))
+
+df2 <-  mutate(df2, Fecha = as.Date(paste(Anio, Mes, Dia, sep='-')))
 head(df2)
 
-#------------ Temperatura --------------#
+###--------------Temperatura--------------
 
 # a) grafico de variacion diaria de temperatura 
 temperatura <- df2 %>% ggplot(aes(x=Fecha, color=Leyenda)) +
@@ -125,7 +127,8 @@ ggsave("temperatura.png", plot = temperatura, width = 10, height = 6, units = "i
 
 # Conversion y calculo de promedios horarios
 dfih<- group_by(dfi, Anio, Hora)
-dfih <- summarise(dfih, tmed = raiza(Temp))
+dfih <- summarise(dfih, tmed = Prom(Temp))
+head(dfih)
 
 dfih %>% ggplot(aes(x= Hora, y=tmed, color=Leyenda)) +
   geom_line(aes(color="Temp. horaria"))+
@@ -160,18 +163,18 @@ ggsave("tempHor1.png", plot = Temphor, width = 10, height = 6, units = "in", dpi
 
 # haciendo calculos mensuales
 df31 <- group_by(df2, Anio, Mes)
-df32 <- summarise(df31, Tmax = mean(Tx), Tmin= mean(Tmi), Tme=mean(Tmed))
+df32 <- summarise(df31, Tmax = Prom(Tx), Tmin= Prom(Tmi), Tme=Prom(Tmed))
 df32 <- mutate(df32, Fecha=as.Date(paste(Anio,Mes,1, sep='-')))
 
 # grafico
 
 df32 %>% ggplot(aes(x=Fecha, color=Leyenda))+
-  geom_line(aes(y=Tmax, color="Tmax"))+
-  geom_point(aes(y=Tmax, color="Tmax"))+
-  geom_line(aes(y=Tmin, color="Tmin"))+
-  geom_point(aes(y=Tmin, color="Tmin"))+
-  geom_line(aes(y=Tme, color="Tmed"))+
-  geom_point(aes(y=Tme, color="Tmed"))+
+  geom_line(aes(y=Tmax, color="Temp. Máxima"))+
+  geom_point(aes(y=Tmax, color="Temp. Máxima"))+
+  geom_line(aes(y=Tmin, color="Temp. Mínima"))+
+  geom_point(aes(y=Tmin, color="Temp. Mínima"))+
+  geom_line(aes(y=Tme, color="Temp. Media"))+
+  geom_point(aes(y=Tme, color="Temp. Media"))+
   theme_light()+
   theme(legend.text = element_text(size=7,face = "bold"))+
   theme(plot.title = element_text(hjust = 0.5))+
@@ -199,14 +202,14 @@ df32$Mon <- month(df32$Mes, label = T, abbr = FALSE)
 df32$Mon <- as.factor(df32$Mon)
 
 
-df32 %>% ggplot(aes(x=Mon))+
-  geom_boxplot(aes(y = Tmax, fill="Tmax"))+
-  geom_boxplot(aes(y = Tmin, fill="Tmin"))+
-  geom_boxplot(aes(y = Tme, fill="Tmed"))+
+df32 %>% ggplot(aes(x=Mon, fill=Leyenda))+
+  geom_boxplot(aes(y = Tmax, fill="Temp. Máxima"))+
+  geom_boxplot(aes(y = Tmin, fill="Temp. Mínima"))+
+  geom_boxplot(aes(y = Tme, fill="Temp. Media"))+
   scale_y_continuous(limits = c(0,35),
                      breaks = seq(0,35,5),
                      expand = c(0.01,0.01),
-                     name = "(mm)")+
+                     name = "(°C)")+
   theme_minimal()+
   ggtitle("Variación mensual de Temperatura")+
   theme(legend.text = element_text(size=7,face = "bold"))+
@@ -224,17 +227,17 @@ ggsave("temp_bp_men.png", plot = Tmp_BP, width = 10, height = 6, units = "in", d
 
 
 
-####---------------------- Precipitación ----------------------------####
+####---------------------- Precipitación ----------------------------
 
 # Variacion diaria 
 Prec <- df2 %>% ggplot(aes(x=Fecha, color=Leyenda))+
   geom_line(aes(y= Prec, color ="Precipitación"))+
   geom_point(aes(y= Prec, color ="Precipitación"))+ 
-  scale_color_manual(values = "blue", labels="Prec")+
-  scale_y_continuous(limits = c(0,10),
-                     breaks = seq(0,10,1),
+  scale_color_manual(values = "blue", labels="Precipitación")+
+  scale_y_continuous(limits = c(0,15),
+                     breaks = seq(0,15,1),
                      expand = c(0.01,0.01),
-                     name = "(°C)")+
+                     name = "(mm)")+
   scale_x_date(date_breaks = "1 year", date_labels =  "%Y")+
   theme_minimal()+
   theme(legend.text = element_text(size=7,face = "bold"))+
@@ -256,18 +259,16 @@ df3 <- group_by(df2, Anio, Mes)
 df4 <- summarise(df3, PP = sum(Prec))
 df41 <- group_by(df4, Mes)
 df42 <- summarise(df41, PPi = mean(PP))
-#df4$Mess <- month(df4$Mess, label = T, abbr = FALSE)
 df42$Mon <- month(df42$Mes, label = T, abbr = FALSE)
 df42$Mon <- as.factor(df42$Mon)
                
 PPmon <- df42 %>% ggplot(aes(x=Mon, y=PPi, color = Leyenda))+
   geom_bar(aes(color="Precipitación"),fill="steelblue", show.legend = TRUE,stat = "identity",position = "dodge",)+
-  scale_color_manual(values = "black", labels="Prec")+
+  scale_color_manual(values = "black", labels="Precipitación")+
   scale_y_continuous(limits = c(0,20),
                      breaks = seq(0,20,2),
                      expand = c(0.01,0.01),
                      name = "(mm)")+
-  #scale_x_continuous(limits = c(0.5,12.5),breaks = seq(1,12,1))+
   theme_minimal()+
   theme(legend.text = element_text(size=7,face = "bold"))+
   theme(plot.title = element_text(hjust = 0.5))+
@@ -290,8 +291,9 @@ df6$Mon <- month(df6$Mes, label = T, abbr = FALSE)
 df6$Mon <- as.factor(df6$Mon)
 
 
-df6 %>% ggplot(aes(x=Mon, y=PP))+
-  geom_boxplot(fill="steelblue")+
+df6 %>% ggplot(aes(x=Mon, fill=Leyenda))+
+  geom_boxplot(aes(y=PP,fill="Precipitación"))+
+  scale_fill_manual(values = "steelblue", labels="Precipitación")+
   scale_y_continuous(limits = c(0,20),
                      breaks = seq(0,20,2),
                      expand = c(0.01,0.01),
@@ -311,7 +313,7 @@ PP_bp
 ggsave("Prec_Men_bp.png", plot = PP_bp, width = 10, height = 6, units = "in", dpi = 300)
 
 
-# - - - -  - - - - - - -  Humedad Relativa  - - - - -  - - - - - - - - - -  
+###----------------------------Humedad Relativa-----------------------------  
 
 # a) variación diaria anual
 df2 %>% ggplot(aes(x= Fecha, y=HR, color = Leyenda))+
@@ -340,6 +342,8 @@ ggsave("HrelD.png", plot = Hrel, width = 10, height = 6, units = "in", dpi = 300
 
 
 # b) variación mensual multianual
+df2$Mon <- month(df2$Mes, label = T, abbr = FALSE)
+df2$Mon <- as.factor(df2$Mon)
 
 df52 <- group_by(df2, Mon)
 df512 <- summarise(df52, Hrl=mean(HR))
@@ -347,11 +351,11 @@ df512 <- summarise(df52, Hrl=mean(HR))
 
 HrelM <- df512 %>% ggplot(aes(x=Mon, y=Hrl, color = Leyenda))+
   geom_bar(aes(color="Precipitación"),fill="#4169E1", show.legend = TRUE,stat = "identity",position = "dodge",)+
-  scale_color_manual(values = "black", labels="Prec")+
+  scale_color_manual(values = "black", labels="Humedad Relativa")+
   scale_y_continuous(limits = c(0,100),
                      breaks = seq(0,100,5),
                      expand = c(0.01,0.01),
-                     name = "(mm)")+
+                     name = "(%)")+
   theme_minimal()+
   theme(legend.text = element_text(size=7,face = "bold"))+
   theme(plot.title = element_text(hjust = 0.5))+
@@ -367,12 +371,11 @@ ggsave("Hrel_Men_bar.png", plot = HrelM, width = 10, height = 6, units = "in", d
 
 
 
-# - - - - - - - - - - -  Rosas de Viento - - - - - - - - - - - - - - - -
+####-------------------------------Rosas de Viento---------------------------------
 
 # Conversion y calculo de promedios horarios
 dfvh<- group_by(df1, Anio, Hora)
 dfvh <- summarise(dfvh, Wsp = mean(Wspeed))
-
 
 dfvh %>% ggplot(aes(x= Hora, y=Wsp, color=Leyenda)) +
   geom_line(aes(color="Velocidad horaria"))+
@@ -480,3 +483,73 @@ WRoseSea
 png(filename = "Wrose_Season.png", width = 600, height = 600)
 WRoseSea
 dev.off()
+
+#######------------ Fin de graficos y procesamiento de datos Meteorológicos-------------------------#
+####
+##
+
+
+
+
+#---------------------------------------------*****-----------------------------------------------#
+#
+####                             Graficos de calidad de aire
+#
+#-------------------------------------------------------------------------------------------------#
+
+dfpm <- read.csv("datospm.csv", sep=';')
+dfpm <- mutate(dfpm, Fecha=as.Date(paste(Anio,Mes,Dia, sep='-')))
+
+dfpm_ene <- filter(dfpm, Mes==1)
+dfpm_jun <- filter(dfpm, Mes==6)
+
+
+# GRafica para enero
+dfpm_ene %>% ggplot(aes(x=Fecha, color = Leyenda))+
+  geom_bar(aes(y = PM25, color="PM2.5"), fill="steelblue",width = 0.9 ,show.legend = TRUE,stat = "identity",position = "dodge")+
+  scale_x_date(limit = c(as.Date("2015-01-01"), as.Date("2015-01-31")),date_breaks = "1 day", date_labels =  "%d")+
+  geom_hline(aes(yintercept = 50, color="ECA PM2.5"), color = "red", linetype = "dashed", size = 1, name = "dias de enero") +
+  scale_y_continuous(limits = c(0,80),
+                     breaks = seq(0,80,5),
+                     expand = c(0.01,0.01),
+                     name = "(µg.m^-3)")+
+  theme_minimal()+
+  theme(legend.text = element_text(size=7,face = "bold"))+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(axis.line = element_line(color = "black", size = 1),
+        axis.title = element_text(colour = "black", lineheight = 12, face = "bold"),
+        axis.title.x = element_text(lineheight = 10, color = "black", face = "bold"),
+        axis.title.y = element_text(margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")),
+        axis.text.x = element_text(lineheight = 10, color = "black", face = "bold", margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm")),
+        axis.text.y = element_text(lineheight = 10, color = "black", face = "bold", family = "Arial", margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")))+
+  ggtitle("Variación de concentracion de PM2.5 para el mes de Enero") -> PM25_ene
+
+PM25_ene 
+
+ggsave("PM25_ene.png", plot = PM25_ene , width = 10, height = 6, units = "in", dpi = 300)
+
+
+# Grafica para Junio
+dfpm_jun %>% ggplot(aes(x=Fecha, color = Leyenda))+
+  geom_bar(aes(y = PM25, color="PM2.5"), fill="steelblue",width = 0.9 ,show.legend = TRUE,stat = "identity",position = "dodge")+
+  geom_hline(aes(yintercept = 50, color="ECA PM2.5"), color = "red", linetype = "dashed", size = 1) +
+  scale_x_date(limit = c(as.Date("2015-05-30"), as.Date("2015-06-30")),date_breaks = "1 day", date_labels =  "%d",  name = "dias de junio")+
+  scale_y_continuous(limits = c(0,80),
+                     breaks = seq(0,80,5),
+                     expand = c(0.01,0.01),
+                     name = "(µg.m^-3)")+
+  theme_minimal()+
+  theme(legend.text = element_text(size=7,face = "bold"))+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(axis.line = element_line(color = "black", size = 1),
+        axis.title = element_text(colour = "black", lineheight = 12, face = "bold"),
+        axis.title.x = element_text(lineheight = 10, color = "black", face = "bold"),
+        axis.title.y = element_text(margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")),
+        axis.text.x = element_text(lineheight = 10, color = "black", face = "bold", margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm")),
+        axis.text.y = element_text(lineheight = 10, color = "black", face = "bold", family = "Arial", margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")))+
+  ggtitle("Variación de concentracion de PM2.5 para el mes de Junio") -> PM25_jun
+
+PM25_jun
+
+ggsave("PM25_jun.png", plot = PM25_jun , width = 10, height = 6, units = "in", dpi = 300)
+
